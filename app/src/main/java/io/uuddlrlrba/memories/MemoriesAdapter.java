@@ -1,6 +1,7 @@
 package io.uuddlrlrba.memories;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.support.v7.widget.CardView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +11,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.GlideBitmapDrawable;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
@@ -22,11 +24,13 @@ import java.text.DateFormat;
 public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
     private DateFormat timeFormat;
     private DateFormat dateFormat;
+    private OnItemShareListener listener;
 
-    public MemoriesAdapter(Context context) {
+    public MemoriesAdapter(Context context, OnItemShareListener listener) {
         super(context, R.layout.row_memory);
-        timeFormat = android.text.format.DateFormat.getTimeFormat(context);
-        dateFormat = android.text.format.DateFormat.getLongDateFormat(context);
+        this.timeFormat = android.text.format.DateFormat.getTimeFormat(context);
+        this.dateFormat = android.text.format.DateFormat.getLongDateFormat(context);
+        this.listener = listener;
     }
 
     @Override
@@ -35,7 +39,7 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
             convertView = View.inflate(getContext(), R.layout.row_memory, null);
         }
 
-        Metadata metadata = getItem(position);
+        final Metadata metadata = getItem(position);
 
         final TextView titleTextView = (TextView) convertView.findViewById(R.id.text_view);
         final TextView errorTextView = (TextView) convertView.findViewById(R.id.text_view_error);
@@ -45,6 +49,7 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
 
         progressBar.setVisibility(View.VISIBLE);
         errorTextView.setVisibility(View.GONE);
+        imageView.setOnClickListener(null);
 
         titleTextView.setText(dateFormat.format(metadata.getCreatedDate()) + " "
                 + timeFormat.format(metadata.getCreatedDate()));
@@ -62,10 +67,16 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
                     }
 
                     @Override
-                    public boolean onResourceReady(GlideDrawable resource, DriveId model,
+                    public boolean onResourceReady(final GlideDrawable resource, DriveId model,
                            Target<GlideDrawable> target, boolean isFromMemoryCache,
                            boolean isFirstResource) {
                         progressBar.setVisibility(View.GONE);
+                        imageView.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                listener.share(((GlideBitmapDrawable) resource).getBitmap());
+                            }
+                        });
                         return false;
                     }
                 })
@@ -79,5 +90,9 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
         }
 
         return convertView;
+    }
+
+    interface OnItemShareListener {
+        void share(Bitmap share);
     }
 }

@@ -1,11 +1,16 @@
 package io.uuddlrlrba.memories;
 
+import android.app.ProgressDialog;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
+import android.support.v4.content.FileProvider;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
@@ -21,13 +26,16 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 import io.uuddlrlrba.memories.glide.DriveIdModelLoader;
 
-public class MainActivity extends GoogleDriveActivity {
+public class MainActivity extends GoogleDriveActivity
+        implements MemoriesAdapter.OnItemShareListener {
 
     private ListView mListView;
     private CameraView mCameraView;
@@ -78,7 +86,7 @@ public class MainActivity extends GoogleDriveActivity {
             }
         });
 
-        mResultsAdapter = new MemoriesAdapter(this);
+        mResultsAdapter = new MemoriesAdapter(this, this);
         mListView.setAdapter(mResultsAdapter);
     }
 
@@ -129,6 +137,48 @@ public class MainActivity extends GoogleDriveActivity {
             }
             mBackgroundHandler = null;
         }
+    }
+
+    @Override
+    public void share(final Bitmap bitmap) {
+        final ProgressDialog dialog = ProgressDialog.show(this, "",
+                getString(R.string.share_dialog), true, false);
+
+        getBackgroundHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                String prompt = getString(R.string.share_prompt);
+                try {
+                    // save bitmap to cache directory
+                    File cachePath = new File(getCacheDir(), "images");
+                    cachePath.mkdirs();
+                    // overwrite the image every time
+                    FileOutputStream stream = new FileOutputStream(cachePath + "/image.png");
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                    stream.close();
+
+                    File imagePath = new File(getCacheDir(), "images");
+                    File newFile = new File(imagePath, "image.png");
+                    Uri contentUri = FileProvider.getUriForFile(MainActivity.this,
+                            "io.uuddlrlrba.memories.fileprovider", newFile);
+
+                    if (contentUri != null) {
+                        Intent shareIntent = new Intent();
+                        shareIntent.setAction(Intent.ACTION_SEND);
+                        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        shareIntent.setDataAndType(contentUri,
+                                getContentResolver().getType(contentUri));
+                        shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                        dialog.dismiss();
+                        startActivity(Intent.createChooser(shareIntent, prompt));
+                    }
+                } catch(Exception e) {
+                    Toast.makeText(MainActivity.this, R.string.share_exception,
+                            Toast.LENGTH_LONG).show();
+                    dialog.dismiss();
+                }
+            }
+        });
     }
 
     private final class PhotoUploader implements ResultCallback<DriveApi.DriveContentsResult> {
