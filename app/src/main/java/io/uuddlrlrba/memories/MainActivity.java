@@ -232,7 +232,7 @@ public class MainActivity extends GoogleDriveActivity
                         showMessage("Error while trying to create the file");
                     } else {
                         showMessage("Captured a new memory");
-                        mResultsAdapter.notifyDataSetChanged();
+                        reloadAdapterContents();
                     }
                 }
             };
@@ -244,12 +244,15 @@ public class MainActivity extends GoogleDriveActivity
     @Override
     public void onConnected(Bundle connectionHint) {
         super.onConnected(connectionHint);
-        Drive.DriveApi.getAppFolder(getGoogleApiClient()).listChildren(getGoogleApiClient())
-                .setResultCallback(metadataResult);
-
+        reloadAdapterContents();
         Glide.get(this)
                 .register(DriveId.class, InputStream.class,
                         new DriveIdModelLoader.Factory(getGoogleApiClient()));
+    }
+
+    private void reloadAdapterContents() {
+        Drive.DriveApi.getAppFolder(getGoogleApiClient()).listChildren(getGoogleApiClient())
+                .setResultCallback(metadataResult);
     }
 
     final private ResultCallback<DriveApi.MetadataBufferResult> metadataResult = new
