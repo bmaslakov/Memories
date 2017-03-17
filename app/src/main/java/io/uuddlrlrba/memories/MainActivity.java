@@ -141,6 +141,10 @@ public class MainActivity extends GoogleDriveActivity
 
     @Override
     public void share(final Bitmap bitmap) {
+        /*
+         * OMG, we cannot Google Drive file from the Android SDK. That's unfortunate.
+         */
+
         final ProgressDialog dialog = ProgressDialog.show(this, "",
                 getString(R.string.share_dialog), true, false);
 

@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.IntentSender.SendIntentException;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -15,7 +16,7 @@ import com.google.android.gms.drive.Drive;
  * An abstract activity that handles authorization and connection to the Drive
  * services.
  */
-public abstract class GoogleDriveActivity extends BaseActivity implements
+public abstract class GoogleDriveActivity extends AppCompatActivity implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener {
 
