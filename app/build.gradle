@@ -20,6 +20,22 @@ android {
         }
     }
 
+    signingConfigs {
+        debug {
+            storeFile file("../keystore.jks")
+            storePassword 'N-#jhfH8G_=CE.rV'
+            keyAlias 'key0'
+            keyPassword 'N-#jhfH8G_=CE.rV'
+        }
+        release {
+            storeFile file("../keystore.jks")
+            storePassword 'N-#jhfH8G_=CE.rV'
+            keyAlias 'key0'
+            keyPassword 'N-#jhfH8G_=CE.rV'
+        }
+    }
+}
+
 allprojects {
     repositories {
         maven { url 'https://jitpack.io' }
