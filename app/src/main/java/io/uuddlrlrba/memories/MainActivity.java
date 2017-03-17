@@ -8,26 +8,30 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.google.android.cameraview.CameraView;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveFolder;
+import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+
+import io.uuddlrlrba.memories.glide.DriveIdModelLoader;
 
 public class MainActivity extends GoogleDriveActivity {
 
-    private TextView mTextMessage;
+    private ListView mListView;
     private CameraView mCameraView;
-    private Button mButton;
+    private MemoriesAdapter mResultsAdapter;
 
     private Handler mBackgroundHandler;
 
@@ -38,14 +42,15 @@ public class MainActivity extends GoogleDriveActivity {
         public boolean onNavigationItemSelected(@NonNull MenuItem item) {
             switch (item.getItemId()) {
                 case R.id.navigation_memories:
-                    mTextMessage.setText(R.string.title_memories);
                     if (mCameraView.getVisibility() == View.VISIBLE) {
                         mCameraView.setVisibility(View.GONE);
                         mCameraView.stop();
                     }
+                    mListView.setVisibility(View.VISIBLE);
                     return true;
                 case R.id.navigation_camera:
                     mCameraView.setVisibility(View.VISIBLE);
+                    mListView.setVisibility(View.GONE);
                     mCameraView.start();
                     return true;
             }
@@ -58,21 +63,23 @@ public class MainActivity extends GoogleDriveActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mTextMessage = (TextView) findViewById(R.id.message);
+        mListView = (ListView) findViewById(R.id.list_view);
         mCameraView = (CameraView) findViewById(R.id.camera_view);
-        mButton = (Button) findViewById(R.id.button);
 
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
 
         mCameraView.addCallback(mCallback);
 
-        mButton.setOnClickListener(new View.OnClickListener() {
+        findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 mCameraView.takePicture();
             }
         });
+
+        mResultsAdapter = new MemoriesAdapter(this);
+        mListView.setAdapter(mResultsAdapter);
     }
 
     @Override
@@ -183,4 +190,30 @@ public class MainActivity extends GoogleDriveActivity {
     private void showMessage(String string) {
         Toast.makeText(this, string, Toast.LENGTH_LONG).show();
     }
+
+    @Override
+    public void onConnected(Bundle connectionHint) {
+        super.onConnected(connectionHint);
+        Drive.DriveApi.getAppFolder(getGoogleApiClient()).listChildren(getGoogleApiClient())
+                .setResultCallback(metadataResult);
+
+        Glide.get(this)
+                .register(DriveId.class, InputStream.class,
+                        new DriveIdModelLoader.Factory(getGoogleApiClient()));
+    }
+
+    final private ResultCallback<DriveApi.MetadataBufferResult> metadataResult = new
+            ResultCallback<DriveApi.MetadataBufferResult>() {
+                @Override
+                public void onResult(@NonNull DriveApi.MetadataBufferResult result) {
+                    if (!result.getStatus().isSuccess()) {
+                        showMessage("Problem while retrieving files");
+                        return;
+                    }
+                    mResultsAdapter.clear();
+                    mResultsAdapter.append(result.getMetadataBuffer());
+                    showMessage("Successfully listed files.");
+                }
+            };
+
 }
