@@ -30,6 +30,7 @@ public class WelcomeActivity extends GoogleDriveActivity {
                 .edit()
                 .putBoolean("registered", true)
                 .apply();
+        getGoogleApiClient().disconnect();
     }
 
     private void navigateToMainActivity() {
