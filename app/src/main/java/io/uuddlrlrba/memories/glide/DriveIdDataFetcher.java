@@ -52,12 +52,14 @@ public class DriveIdDataFetcher implements DataFetcher<InputStream> {
         cancelled = true;
         if (contents != null) {
             contents.discard(client);
+            contents = null;
         }
     }
 
     public void cleanup() {
         if (contents != null) {
             contents.discard(client);
+            contents = null;
         }
     }
 
