@@ -6,5 +6,6 @@
     <dimen name="activity_vertical_margin_half">8dp</dimen>
     <dimen name="list_divider">16dp</dimen>
     <dimen name="progress_bar_size">64dp</dimen>
+    <dimen name="fab_size">64dp</dimen>
     <dimen name="card_corner_radius">8dp</dimen>
 </resources>

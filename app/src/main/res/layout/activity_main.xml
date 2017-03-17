@@ -28,11 +28,14 @@
             android:layout_height="match_parent"
             android:visibility="gone" >
 
-            <Button
+            <android.support.design.widget.FloatingActionButton
                 android:id="@+id/button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="bottom|center_horizontal" />
+                android:layout_width="@dimen/fab_size"
+                android:layout_height="@dimen/fab_size"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="@dimen/activity_vertical_margin"
+                app:srcCompat="@drawable/ic_camera_alt_white_24dp"
+                app:elevation="2dp"/>
 
         </com.google.android.cameraview.CameraView>
 

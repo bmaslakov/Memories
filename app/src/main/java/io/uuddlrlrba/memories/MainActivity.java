@@ -180,10 +180,10 @@ public class MainActivity extends GoogleDriveActivity {
                 public void onResult(@NonNull DriveFolder.DriveFileResult result) {
                     if (!result.getStatus().isSuccess()) {
                         showMessage("Error while trying to create the file");
-                        return;
+                    } else {
+                        showMessage("Captured a new memory");
+                        mResultsAdapter.notifyDataSetChanged();
                     }
-                    showMessage("Created a file in Google Drive Folder: "
-                            + result.getDriveFile().getDriveId());
                 }
             };
 
