@@ -5,6 +5,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,6 +32,7 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.MetadataChangeSet;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -59,6 +61,7 @@ public class MainActivity extends GoogleDriveActivity implements
 
         mListView = (ListView) findViewById(R.id.list_view);
         mCameraView = (CameraView) findViewById(R.id.camera_view);
+        mCameraView.setSoundEffectsEnabled(true);
         mTextViewStatus = (TextView) findViewById(R.id.text_view_status);
 
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
@@ -187,12 +190,12 @@ public class MainActivity extends GoogleDriveActivity implements
                     File cachePath = new File(getCacheDir(), "images");
                     cachePath.mkdirs();
                     // overwrite the image every time
-                    FileOutputStream stream = new FileOutputStream(cachePath + "/image.png");
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream);
+                    FileOutputStream stream = new FileOutputStream(cachePath + "/image.jpg");
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
                     stream.close();
 
                     File imagePath = new File(getCacheDir(), "images");
-                    File newFile = new File(imagePath, "image.png");
+                    File newFile = new File(imagePath, "image.jpg");
                     Uri contentUri = FileProvider.getUriForFile(MainActivity.this,
                             "io.uuddlrlrba.memories.fileprovider", newFile);
 
@@ -255,6 +258,40 @@ public class MainActivity extends GoogleDriveActivity implements
             this.data = data;
         }
 
+        private Bitmap resize(Bitmap image, int maxWidth, int maxHeight) {
+            if (maxHeight > 0 && maxWidth > 0) {
+                int width = image.getWidth();
+                int height = image.getHeight();
+                float ratioBitmap = (float) width / (float) height;
+                float ratioMax = (float) maxWidth / (float) maxHeight;
+
+                int finalWidth = maxWidth;
+                int finalHeight = maxHeight;
+                if (ratioMax > 1) {
+                    finalWidth = (int) ((float)maxHeight * ratioBitmap);
+                } else {
+                    finalHeight = (int) ((float)maxWidth / ratioBitmap);
+                }
+                image = Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true);
+                return image;
+            } else {
+                return image;
+            }
+        }
+
+        private byte[] resizeImage(byte[] data) {
+            Bitmap original = BitmapFactory.decodeByteArray(data , 0, data.length);
+
+            Bitmap resized = resize(original, 2048, 2048);
+            original.recycle();
+
+            ByteArrayOutputStream blob = new ByteArrayOutputStream();
+            resized.compress(Bitmap.CompressFormat.JPEG, 80, blob);
+            resized.recycle();
+
+            return blob.toByteArray();
+        }
+
         @Override
         public void onResult(@NonNull DriveApi.DriveContentsResult result) {
             if (!result.getStatus().isSuccess()) {
@@ -275,7 +312,7 @@ public class MainActivity extends GoogleDriveActivity implements
                     // write content to DriveContents
                     OutputStream os = driveContents.getOutputStream();
                     try {
-                        os.write(data);
+                        os.write(resizeImage(data));
                         os.close();
                     } catch (IOException e) {
                         showMessage(e.getMessage());
