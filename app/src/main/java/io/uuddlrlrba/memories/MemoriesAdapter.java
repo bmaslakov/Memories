@@ -6,9 +6,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.drawable.GlideDrawable;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.widget.DataBufferAdapter;
@@ -33,15 +37,34 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
 
         Metadata metadata = getItem(position);
 
-        TextView titleTextView = (TextView) convertView.findViewById(R.id.text_view);
-        ImageView imageView = (ImageView) convertView.findViewById(R.id.image_view);
-        CardView cardView = (CardView) convertView.findViewById(R.id.card_view);
+        final TextView titleTextView = (TextView) convertView.findViewById(R.id.text_view);
+        final ImageView imageView = (ImageView) convertView.findViewById(R.id.image_view);
+        final CardView cardView = (CardView) convertView.findViewById(R.id.card_view);
+        final ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.progress_bar);
+
+        progressBar.setVisibility(View.VISIBLE);
 
         titleTextView.setText(dateFormat.format(metadata.getCreatedDate()) + " "
                 + timeFormat.format(metadata.getCreatedDate()));
         Glide.with(getContext())
                 .from(DriveId.class)
                 .load(metadata.getDriveId())
+                .centerCrop()
+                .listener(new RequestListener<DriveId, GlideDrawable>() {
+                    @Override
+                    public boolean onException(Exception e, DriveId model,
+                           Target<GlideDrawable> target, boolean isFirstResource) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(GlideDrawable resource, DriveId model,
+                           Target<GlideDrawable> target, boolean isFromMemoryCache,
+                           boolean isFirstResource) {
+                        progressBar.setVisibility(View.GONE);
+                        return false;
+                    }
+                })
                 .into(imageView);
 
         int dp = getContext().getResources().getDimensionPixelSize(R.dimen.list_divider);
