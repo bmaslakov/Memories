@@ -1,7 +1,9 @@
 package io.uuddlrlrba.memories;
 
+import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
@@ -10,10 +12,13 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
@@ -34,37 +39,17 @@ import java.io.OutputStream;
 
 import io.uuddlrlrba.memories.glide.DriveIdModelLoader;
 
-public class MainActivity extends GoogleDriveActivity
-        implements MemoriesAdapter.OnItemShareListener {
+public class MainActivity extends GoogleDriveActivity implements
+        MemoriesAdapter.OnItemShareListener {
+
+    private final static int PERMISSIONS_REQUEST_CAMERA = 0x123;
 
     private ListView mListView;
     private CameraView mCameraView;
+    private TextView mTextViewStatus;
     private MemoriesAdapter mResultsAdapter;
 
     private Handler mBackgroundHandler;
-
-    private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
-            = new BottomNavigationView.OnNavigationItemSelectedListener() {
-
-        @Override
-        public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-            switch (item.getItemId()) {
-                case R.id.navigation_memories:
-                    if (mCameraView.getVisibility() == View.VISIBLE) {
-                        mCameraView.setVisibility(View.GONE);
-                        mCameraView.stop();
-                    }
-                    mListView.setVisibility(View.VISIBLE);
-                    return true;
-                case R.id.navigation_camera:
-                    mCameraView.setVisibility(View.VISIBLE);
-                    mListView.setVisibility(View.GONE);
-                    mCameraView.start();
-                    return true;
-            }
-            return false;
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,9 +58,24 @@ public class MainActivity extends GoogleDriveActivity
 
         mListView = (ListView) findViewById(R.id.list_view);
         mCameraView = (CameraView) findViewById(R.id.camera_view);
+        mTextViewStatus = (TextView) findViewById(R.id.text_view_status);
 
         BottomNavigationView navigation = (BottomNavigationView) findViewById(R.id.navigation);
-        navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
+        navigation.setOnNavigationItemSelectedListener(
+                new BottomNavigationView.OnNavigationItemSelectedListener() {
+                    @Override
+                    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+                        switch (item.getItemId()) {
+                            case R.id.navigation_memories:
+                                showList();
+                                return true;
+                            case R.id.navigation_camera:
+                                showCamera();
+                                return true;
+                        }
+                        return false;
+                    }
+                });
 
         mCameraView.addCallback(mCallback);
 
@@ -88,6 +88,11 @@ public class MainActivity extends GoogleDriveActivity
 
         mResultsAdapter = new MemoriesAdapter(this, this);
         mListView.setAdapter(mResultsAdapter);
+        if (mResultsAdapter.getCount() == 0) {
+            mTextViewStatus.setText(R.string.no_memories);
+            mTextViewStatus.setVisibility(View.VISIBLE);
+            mListView.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -140,9 +145,29 @@ public class MainActivity extends GoogleDriveActivity
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSIONS_REQUEST_CAMERA: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    mTextViewStatus.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            // looks like a bug google's CameraView
+                            showCamera();
+                        }
+                    }, 100);
+                }
+            }
+        }
+    }
+
+    @Override
     public void share(final Bitmap bitmap) {
         /*
-         * OMG, we cannot Google Drive file from the Android SDK. That's unfortunate.
+         * OMG, we cannot share Google Drive file from the Android SDK. That's unfortunate.
+         * :(
          */
 
         final ProgressDialog dialog = ProgressDialog.show(this, "",
@@ -183,6 +208,39 @@ public class MainActivity extends GoogleDriveActivity
                 }
             }
         });
+    }
+
+    private void showList() {
+        if (mCameraView.getVisibility() == View.VISIBLE) {
+            mCameraView.setVisibility(View.GONE);
+            mCameraView.stop();
+        }
+        if (mResultsAdapter.getCount() == 0) {
+            mTextViewStatus.setText(R.string.no_memories);
+            mTextViewStatus.setVisibility(View.VISIBLE);
+            mListView.setVisibility(View.GONE);
+        } else {
+            mTextViewStatus.setVisibility(View.GONE);
+            mListView.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void showCamera() {
+        mListView.setVisibility(View.GONE);
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(this,
+                    new String[] { Manifest.permission.CAMERA },
+                    PERMISSIONS_REQUEST_CAMERA);
+
+            mTextViewStatus.setVisibility(View.VISIBLE);
+            mTextViewStatus.setText(R.string.camera_permission);
+        } else {
+            mTextViewStatus.setVisibility(View.GONE);
+            mCameraView.setVisibility(View.VISIBLE);
+            mCameraView.start();
+        }
     }
 
     private final class PhotoUploader implements ResultCallback<DriveApi.DriveContentsResult> {
@@ -269,7 +327,11 @@ public class MainActivity extends GoogleDriveActivity
                     }
                     mResultsAdapter.clear();
                     mResultsAdapter.append(result.getMetadataBuffer());
-                    showMessage("Successfully listed files.");
+
+                    // update list visibility
+                    if (mCameraView.getVisibility() != View.VISIBLE) {
+                        showList();
+                    }
                 }
             };
 
