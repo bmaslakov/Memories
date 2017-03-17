@@ -48,6 +48,7 @@ public class MainActivity extends GoogleDriveActivity implements
     private CameraView mCameraView;
     private TextView mTextViewStatus;
     private MemoriesAdapter mResultsAdapter;
+    private ProgressDialog mProgressDialog;
 
     private Handler mBackgroundHandler;
 
@@ -82,6 +83,10 @@ public class MainActivity extends GoogleDriveActivity implements
         findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if (mProgressDialog == null) {
+                    mProgressDialog = ProgressDialog.show(MainActivity.this, "",
+                            getString(R.string.preparing_photo), true, false);
+                }
                 mCameraView.takePicture();
             }
         });
@@ -254,6 +259,10 @@ public class MainActivity extends GoogleDriveActivity implements
         public void onResult(@NonNull DriveApi.DriveContentsResult result) {
             if (!result.getStatus().isSuccess()) {
                 showMessage("Error while trying to create new file contents");
+                if (mProgressDialog != null) {
+                    mProgressDialog.dismiss();
+                    mProgressDialog = null;
+                }
                 return;
             }
 
@@ -281,6 +290,10 @@ public class MainActivity extends GoogleDriveActivity implements
                     Drive.DriveApi.getAppFolder(getGoogleApiClient())
                             .createFile(getGoogleApiClient(), changeSet, driveContents)
                             .setResultCallback(fileCallback);
+                    if (mProgressDialog != null) {
+                        mProgressDialog.dismiss();
+                        mProgressDialog = null;
+                    }
                 }
             });
         }

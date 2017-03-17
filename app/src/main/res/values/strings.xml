@@ -8,6 +8,7 @@
     <string name="welcome_subtitle">The app for will help you save and share memories.</string>
     <string name="start">Start</string>
     <string name="share_dialog">Your memory is getting ready to share…</string>
+    <string name="preparing_photo">Preparing your photo…</string>
     <string name="share_prompt">How do you like to share?</string>
     <string name="share_exception">No app found to share…</string>
     <string name="no_memories">You have no memories yet</string>
