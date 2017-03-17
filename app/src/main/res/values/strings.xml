@@ -3,6 +3,7 @@
     <string name="title_home">Home</string>
     <string name="title_memories">Memories</string>
     <string name="title_camera">Camera</string>
+    <string name="error_loading_file">Error loading file</string>
     <string name="welcome_title">Welcome to the Memories!</string>
     <string name="welcome_subtitle">The app for will help you save and share memories.</string>
     <string name="start">Start</string>

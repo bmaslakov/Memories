@@ -38,11 +38,13 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
         Metadata metadata = getItem(position);
 
         final TextView titleTextView = (TextView) convertView.findViewById(R.id.text_view);
+        final TextView errorTextView = (TextView) convertView.findViewById(R.id.text_view_error);
         final ImageView imageView = (ImageView) convertView.findViewById(R.id.image_view);
         final CardView cardView = (CardView) convertView.findViewById(R.id.card_view);
         final ProgressBar progressBar = (ProgressBar) convertView.findViewById(R.id.progress_bar);
 
         progressBar.setVisibility(View.VISIBLE);
+        errorTextView.setVisibility(View.GONE);
 
         titleTextView.setText(dateFormat.format(metadata.getCreatedDate()) + " "
                 + timeFormat.format(metadata.getCreatedDate()));
@@ -54,6 +56,8 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
                     @Override
                     public boolean onException(Exception e, DriveId model,
                            Target<GlideDrawable> target, boolean isFirstResource) {
+                        progressBar.setVisibility(View.GONE);
+                        errorTextView.setVisibility(View.VISIBLE);
                         return false;
                     }
 

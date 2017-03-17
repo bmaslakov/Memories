@@ -44,6 +44,14 @@
                     android:layout_height="@dimen/progress_bar_size"
                     android:layout_gravity="center"/>
 
+                <TextView
+                    android:id="@+id/text_view_error"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:text="@string/error_loading_file"
+                    android:layout_gravity="center"/>
+
                 <io.uuddlrlrba.memories.RectangleImageView
                     android:id="@+id/image_view"
                     android:layout_width="match_parent"
