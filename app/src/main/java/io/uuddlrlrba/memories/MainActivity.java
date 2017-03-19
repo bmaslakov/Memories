@@ -2,11 +2,9 @@ package io.uuddlrlrba.memories;
 
 import android.Manifest;
 import android.app.ProgressDialog;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,44 +13,29 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.BottomNavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.content.FileProvider;
+import android.support.v7.app.AppCompatActivity;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
 import com.google.android.cameraview.CameraView;
-import com.google.android.gms.common.api.ResultCallback;
-import com.google.android.gms.drive.Drive;
-import com.google.android.gms.drive.DriveApi;
-import com.google.android.gms.drive.DriveContents;
-import com.google.android.gms.drive.DriveFolder;
-import com.google.android.gms.drive.DriveId;
-import com.google.android.gms.drive.MetadataChangeSet;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-
-import io.uuddlrlrba.memories.glide.DriveIdModelLoader;
-
-public class MainActivity extends GoogleDriveActivity implements
-        MemoriesAdapter.OnItemShareListener {
+public class MainActivity extends AppCompatActivity implements
+        MainActivityPresenter.View {
 
     private final static int PERMISSIONS_REQUEST_CAMERA = 0x123;
 
     private ListView mListView;
     private CameraView mCameraView;
     private TextView mTextViewStatus;
-    private MemoriesAdapter mResultsAdapter;
     private ProgressDialog mProgressDialog;
 
     private Handler mBackgroundHandler;
+
+    private MainActivityPresenter mPresenter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,21 +69,16 @@ public class MainActivity extends GoogleDriveActivity implements
         findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mProgressDialog == null) {
-                    mProgressDialog = ProgressDialog.show(MainActivity.this, "",
-                            getString(R.string.preparing_photo), true, false);
-                }
+                showProgressDialog(getString(R.string.preparing_photo));
                 mCameraView.takePicture();
             }
         });
 
-        mResultsAdapter = new MemoriesAdapter(this, this);
-        mListView.setAdapter(mResultsAdapter);
-        if (mResultsAdapter.getCount() == 0) {
-            mTextViewStatus.setText(R.string.no_memories);
-            mTextViewStatus.setVisibility(View.VISIBLE);
-            mListView.setVisibility(View.GONE);
-        }
+        HandlerThread thread = new HandlerThread("background");
+        thread.start();
+        mBackgroundHandler = new Handler(thread.getLooper());
+
+        mPresenter = new MainActivityPresenter(this, mBackgroundHandler, this);
     }
 
     @Override
@@ -109,7 +87,7 @@ public class MainActivity extends GoogleDriveActivity implements
         if (mCameraView.getVisibility() == View.VISIBLE) {
             mCameraView.start();
         }
-        getGoogleApiClient().connect();
+        mPresenter.connect();
     }
 
     @Override
@@ -118,26 +96,16 @@ public class MainActivity extends GoogleDriveActivity implements
         if (mCameraView.getVisibility() == View.VISIBLE) {
             mCameraView.stop();
         }
-        getGoogleApiClient().disconnect();
+        mPresenter.disconnect();
     }
 
     private CameraView.Callback mCallback = new CameraView.Callback() {
         @Override
         public void onPictureTaken(CameraView cameraView, final byte[] data) {
-
-            Drive.DriveApi.newDriveContents(getGoogleApiClient())
-                    .setResultCallback(new PhotoUploader(data));
+            Bitmap original = BitmapFactory.decodeByteArray(data , 0, data.length);
+            mPresenter.upload(original);
         }
     };
-
-    private Handler getBackgroundHandler() {
-        if (mBackgroundHandler == null) {
-            HandlerThread thread = new HandlerThread("background");
-            thread.start();
-            mBackgroundHandler = new Handler(thread.getLooper());
-        }
-        return mBackgroundHandler;
-    }
 
     @Override
     protected void onDestroy() {
@@ -171,59 +139,12 @@ public class MainActivity extends GoogleDriveActivity implements
         }
     }
 
-    @Override
-    public void share(final Bitmap bitmap) {
-        /*
-         * OMG, we cannot share Google Drive file from the Android SDK. That's unfortunate.
-         * :(
-         */
-
-        final ProgressDialog dialog = ProgressDialog.show(this, "",
-                getString(R.string.share_dialog), true, false);
-
-        getBackgroundHandler().post(new Runnable() {
-            @Override
-            public void run() {
-                String prompt = getString(R.string.share_prompt);
-                try {
-                    // save bitmap to cache directory
-                    File cachePath = new File(getCacheDir(), "images");
-                    cachePath.mkdirs();
-                    // overwrite the image every time
-                    FileOutputStream stream = new FileOutputStream(cachePath + "/image.jpg");
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 80, stream);
-                    stream.close();
-
-                    File imagePath = new File(getCacheDir(), "images");
-                    File newFile = new File(imagePath, "image.jpg");
-                    Uri contentUri = FileProvider.getUriForFile(MainActivity.this,
-                            "io.uuddlrlrba.memories.fileprovider", newFile);
-
-                    if (contentUri != null) {
-                        Intent shareIntent = new Intent();
-                        shareIntent.setAction(Intent.ACTION_SEND);
-                        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                        shareIntent.setDataAndType(contentUri,
-                                getContentResolver().getType(contentUri));
-                        shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-                        dialog.dismiss();
-                        startActivity(Intent.createChooser(shareIntent, prompt));
-                    }
-                } catch(Exception e) {
-                    Toast.makeText(MainActivity.this, R.string.share_exception,
-                            Toast.LENGTH_LONG).show();
-                    dialog.dismiss();
-                }
-            }
-        });
-    }
-
     private void showList() {
         if (mCameraView.getVisibility() == View.VISIBLE) {
             mCameraView.setVisibility(View.GONE);
             mCameraView.stop();
         }
-        if (mResultsAdapter.getCount() == 0) {
+        if (mListView.getAdapter() == null || mListView.getAdapter().getCount() == 0) {
             mTextViewStatus.setText(R.string.no_memories);
             mTextViewStatus.setVisibility(View.VISIBLE);
             mListView.setVisibility(View.GONE);
@@ -251,138 +172,37 @@ public class MainActivity extends GoogleDriveActivity implements
         }
     }
 
-    private final class PhotoUploader implements ResultCallback<DriveApi.DriveContentsResult> {
-        private final byte[] data;
-
-        private PhotoUploader(byte[] data) {
-            this.data = data;
-        }
-
-        private Bitmap resize(Bitmap image, int maxWidth, int maxHeight) {
-            if (maxHeight > 0 && maxWidth > 0) {
-                int width = image.getWidth();
-                int height = image.getHeight();
-                float ratioBitmap = (float) width / (float) height;
-                float ratioMax = (float) maxWidth / (float) maxHeight;
-
-                int finalWidth = maxWidth;
-                int finalHeight = maxHeight;
-                if (ratioMax > 1) {
-                    finalWidth = (int) ((float)maxHeight * ratioBitmap);
-                } else {
-                    finalHeight = (int) ((float)maxWidth / ratioBitmap);
-                }
-                image = Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true);
-                return image;
-            } else {
-                return image;
-            }
-        }
-
-        private byte[] resizeImage(byte[] data) {
-            Bitmap original = BitmapFactory.decodeByteArray(data , 0, data.length);
-
-            Bitmap resized = resize(original, 2048, 2048);
-            original.recycle();
-
-            ByteArrayOutputStream blob = new ByteArrayOutputStream();
-            resized.compress(Bitmap.CompressFormat.JPEG, 80, blob);
-            resized.recycle();
-
-            return blob.toByteArray();
-        }
-
-        @Override
-        public void onResult(@NonNull DriveApi.DriveContentsResult result) {
-            if (!result.getStatus().isSuccess()) {
-                showMessage("Error while trying to create new file contents");
-                if (mProgressDialog != null) {
-                    mProgressDialog.dismiss();
-                    mProgressDialog = null;
-                }
-                return;
-            }
-
-            final DriveContents driveContents = result.getDriveContents();
-
-            // Perform I/O off the UI thread.
-            getBackgroundHandler().post(new Runnable() {
-                @Override
-                public void run() {
-                    // write content to DriveContents
-                    OutputStream os = driveContents.getOutputStream();
-                    try {
-                        os.write(resizeImage(data));
-                        os.close();
-                    } catch (IOException e) {
-                        showMessage(e.getMessage());
-                    }
-
-                    MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                            .setTitle(String.valueOf(System.currentTimeMillis()))
-                            .setMimeType("image/jpeg")
-                            .build();
-
-                    // create a file on root folder
-                    Drive.DriveApi.getAppFolder(getGoogleApiClient())
-                            .createFile(getGoogleApiClient(), changeSet, driveContents)
-                            .setResultCallback(fileCallback);
-                    if (mProgressDialog != null) {
-                        mProgressDialog.dismiss();
-                        mProgressDialog = null;
-                    }
-                }
-            });
-        }
-    }
-
-    final private ResultCallback<DriveFolder.DriveFileResult> fileCallback = new
-            ResultCallback<DriveFolder.DriveFileResult>() {
-                @Override
-                public void onResult(@NonNull DriveFolder.DriveFileResult result) {
-                    if (!result.getStatus().isSuccess()) {
-                        showMessage("Error while trying to create the file");
-                    } else {
-                        showMessage("Captured a new memory");
-                        reloadAdapterContents();
-                    }
-                }
-            };
-
-    private void showMessage(String string) {
+    @Override
+    public void showMessage(String string) {
         Toast.makeText(this, string, Toast.LENGTH_LONG).show();
     }
 
     @Override
-    public void onConnected(Bundle connectionHint) {
-        super.onConnected(connectionHint);
-        reloadAdapterContents();
-        Glide.get(this)
-                .register(DriveId.class, InputStream.class,
-                        new DriveIdModelLoader.Factory(getGoogleApiClient()));
+    public void showProgressDialog(String message) {
+        if (mProgressDialog == null) {
+            mProgressDialog = ProgressDialog.show(MainActivity.this, "",
+                    message, true, false);
+        }
     }
 
-    private void reloadAdapterContents() {
-        Drive.DriveApi.getAppFolder(getGoogleApiClient()).listChildren(getGoogleApiClient())
-                .setResultCallback(metadataResult);
+    @Override
+    public void dismissProgressDialog() {
+        if (mProgressDialog != null) {
+            mProgressDialog.dismiss();
+            mProgressDialog = null;
+        }
     }
 
-    final private ResultCallback<DriveApi.MetadataBufferResult> metadataResult = new
-            ResultCallback<DriveApi.MetadataBufferResult>() {
-                @Override
-                public void onResult(@NonNull DriveApi.MetadataBufferResult result) {
-                    if (!result.getStatus().isSuccess()) {
-                        showMessage("Problem while retrieving files");
-                        return;
-                    }
-                    mResultsAdapter.clear();
-                    mResultsAdapter.append(result.getMetadataBuffer());
-
-                    // update list visibility
-                    if (mCameraView.getVisibility() != View.VISIBLE) {
-                        showList();
-                    }
-                }
-            };
-
+    @Override
+    public void setAdapter(BaseAdapter adapter) {
+        mListView.setAdapter(adapter);
+        if (adapter.getCount() == 0) {
+            mTextViewStatus.setText(R.string.no_memories);
+            mTextViewStatus.setVisibility(View.VISIBLE);
+            mListView.setVisibility(View.GONE);
+        } else {
+            mTextViewStatus.setVisibility(View.GONE);
+            mListView.setVisibility(View.VISIBLE);
+        }
+    }
 }

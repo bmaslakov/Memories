@@ -1,7 +1,6 @@
 package io.uuddlrlrba.memories;
 
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.support.v7.widget.CardView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,12 +20,14 @@ import com.google.android.gms.drive.widget.DataBufferAdapter;
 
 import java.text.DateFormat;
 
+import io.uuddlrlrba.memories.core.Memories;
+
 public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
     private DateFormat timeFormat;
     private DateFormat dateFormat;
-    private OnItemShareListener listener;
+    private Memories.OnItemShareListener listener;
 
-    public MemoriesAdapter(Context context, OnItemShareListener listener) {
+    public MemoriesAdapter(Context context, Memories.OnItemShareListener listener) {
         super(context, R.layout.row_memory);
         this.timeFormat = android.text.format.DateFormat.getTimeFormat(context);
         this.dateFormat = android.text.format.DateFormat.getLongDateFormat(context);
@@ -90,9 +91,5 @@ public class MemoriesAdapter extends DataBufferAdapter<Metadata> {
         }
 
         return convertView;
-    }
-
-    interface OnItemShareListener {
-        void share(Bitmap share);
     }
 }

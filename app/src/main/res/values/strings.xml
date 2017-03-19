@@ -13,4 +13,5 @@
     <string name="share_exception">No app found to share…</string>
     <string name="no_memories">You have no memories yet</string>
     <string name="camera_permission">No camera permission</string>
+    <string name="please_wait">Please wait…</string>
 </resources>

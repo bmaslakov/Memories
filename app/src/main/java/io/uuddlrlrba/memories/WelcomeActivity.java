@@ -1,44 +1,38 @@
 package io.uuddlrlrba.memories;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.view.View;
+import android.support.v7.app.AppCompatActivity;
 
-public class WelcomeActivity extends GoogleDriveActivity {
-    private SharedPreferences mSharedPreferences;
+public class WelcomeActivity extends AppCompatActivity implements
+        WelcomeActivityPresenter.View {
+
+    private WelcomeActivityPresenter mPresenter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_welcome);
 
-        mSharedPreferences = getSharedPreferences("io.uuddlrlrba.memories", MODE_PRIVATE);
+        mPresenter = new WelcomeActivityPresenter(this, this);
 
-        if (mSharedPreferences.getBoolean("registered", false)) {
-            navigateToMainActivity();
-        } else {
-            findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    getGoogleApiClient().connect();
-                }
-            });
-        }
+        findViewById(R.id.button).setOnClickListener(new android.view.View.OnClickListener() {
+            @Override
+            public void onClick(android.view.View v) {
+                mPresenter.connect();
+            }
+        });
     }
 
     @Override
-    public void onConnected(Bundle connectionHint) {
-        super.onConnected(connectionHint);
-        navigateToMainActivity();
-        mSharedPreferences
-                .edit()
-                .putBoolean("registered", true)
-                .apply();
-        getGoogleApiClient().disconnect();
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        mPresenter.onActivityResult(requestCode, resultCode, data);
     }
 
-    private void navigateToMainActivity() {
+
+    @Override
+    public void navigateToMainActivity() {
         startActivity(new Intent(WelcomeActivity.this, MainActivity.class));
         finish();
     }
